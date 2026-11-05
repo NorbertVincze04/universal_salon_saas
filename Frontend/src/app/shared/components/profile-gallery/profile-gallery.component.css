@@ -109,6 +109,19 @@ h1 {
   object-fit: cover;
   display: block;
 }
+/* Shown instead of a broken <img> when a barber has no profile photo. */
+.card-placeholder {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  padding-bottom: 30%;
+  color: var(--tenant-primary);
+  background: color-mix(in srgb, var(--tenant-primary) 14%, var(--theme-surface));
+  font-size: 4rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
 .card-overlay {
   position: absolute;
   inset: auto 0 0;

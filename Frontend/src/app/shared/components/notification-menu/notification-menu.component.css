@@ -212,3 +212,18 @@
     transform: translateY(0);
   }
 }
+
+/* On phones the bell sits mid-header, so a right-anchored 320px panel spills
+   off the left edge. Pin the panel to the viewport under the 64px header. */
+@media (max-width: 600px) {
+  .notification-dropdown {
+    position: fixed;
+    top: calc(64px + 0.5rem);
+    left: 0.75rem;
+    right: 0.75rem;
+    width: auto;
+    max-width: none;
+    max-height: calc(100dvh - 64px - 1.5rem);
+    overflow-y: auto;
+  }
+}

@@ -28,7 +28,7 @@
 h1 {
   font-family: var(--tenant-font-secondary, Georgia), Georgia, serif;
   color: var(--theme-text);
-  font-size: clamp(2.3rem, 6vw, 4.5rem);
+  font-size: clamp(1.9rem, 6vw, 4.5rem);
   margin: 0.25rem 0;
 }
 

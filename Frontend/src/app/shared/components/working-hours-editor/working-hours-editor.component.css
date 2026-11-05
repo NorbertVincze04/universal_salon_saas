@@ -26,6 +26,7 @@
 
 .days {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.7rem;
 }
 
@@ -76,7 +77,21 @@
   }
 
   .day {
-    align-items: flex-start;
+    align-items: stretch;
     flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  /* Two native time inputs + "to" are wider than a 320px phone; let the
+     inputs share the row instead of keeping their intrinsic width. */
+  .day,
+  .times {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .times input {
+    flex: 1 1 0;
+    min-width: 0;
   }
 }

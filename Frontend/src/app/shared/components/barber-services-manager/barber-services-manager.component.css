@@ -117,4 +117,59 @@
   .profile-section {
     padding: 1.25rem;
   }
+
+  /* Phones: each service becomes a card (name on top, duration + price side
+     by side, actions below) instead of a 480px table scrolled sideways. */
+  .data-table {
+    display: grid;
+    gap: 0.75rem;
+    overflow: visible;
+  }
+
+  .table-header {
+    display: none;
+  }
+
+  .table-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.75rem 1rem;
+    min-width: 0;
+    padding: 1rem;
+    border: 1px solid var(--theme-border);
+    border-radius: 0.75rem;
+  }
+
+  .table-row [role="cell"] {
+    display: grid;
+    gap: 0.2rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .table-row [role="cell"]::before {
+    color: var(--theme-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .table-row [role="cell"]:nth-child(1) {
+    grid-column: 1 / -1;
+  }
+
+  .table-row [role="cell"]:nth-child(1)::before { content: "Name"; }
+  .table-row [role="cell"]:nth-child(2)::before { content: "Duration"; }
+  .table-row [role="cell"]:nth-child(3)::before { content: "Price"; }
+
+  .table-row [role="cell"].item-actions {
+    display: flex;
+    grid-column: 1 / -1;
+  }
+
+  .add-service-form input {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
 }

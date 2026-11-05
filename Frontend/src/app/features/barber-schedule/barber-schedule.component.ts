@@ -105,10 +105,8 @@ export class BarberScheduleComponent {
   constructor() {
     // Only barbers (once the tenant config is available) need schedule/service data.
     effect(() => {
-      if (
-        this.tenant.config() &&
-        this.auth.currentUserValue?.type === 'BARBER'
-      ) {
+      // hasRole, not the primary type: owners/admins can also be barbers.
+      if (this.tenant.config() && this.auth.hasRole('BARBER')) {
         this.loadSchedule();
         this.barberApi.listMyServices().subscribe({
           next: (services) => this.services.set(services),

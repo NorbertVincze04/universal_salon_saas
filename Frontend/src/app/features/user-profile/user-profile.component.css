@@ -111,12 +111,15 @@ h1 {
 .account-details {
   display: grid;
   gap: 0.85rem;
+  min-width: 0;
+  max-width: 100%;
   margin: 0;
 }
 
 .account-details div {
   display: grid;
   gap: 0.2rem;
+  min-width: 0;
 }
 
 .account-details dt {
@@ -128,6 +131,8 @@ h1 {
 
 .account-details dd {
   margin: 0;
+  /* Long emails/names have no spaces to break on. */
+  overflow-wrap: anywhere;
   color: var(--theme-text);
   font-weight: 500;
 }
@@ -210,8 +215,16 @@ small,
 /* Appointments table/status/actions styles now live in app-appointments-list. */
 
 @media (max-width: 560px) {
+  .profile-page {
+    padding-inline: 1rem;
+  }
+
   .profile-section {
     padding: 1.25rem;
+  }
+
+  .section-heading {
+    flex-wrap: wrap;
   }
 
   .form-grid {

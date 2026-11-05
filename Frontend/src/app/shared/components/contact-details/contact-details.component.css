@@ -10,12 +10,13 @@
   max-width: 1100px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  /* minmax(0, …) lets tracks shrink below the iframe's intrinsic 300px. */
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
   gap: 1.5rem;
 }
 
 .contact-grid.single-column {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .contact-card,
@@ -57,6 +58,8 @@
 .contact-link {
   display: block;
   width: fit-content;
+  max-width: 100%;
+  overflow-wrap: anywhere;
   margin: 0.35rem 0;
   font-weight: 600;
   color: var(--tenant-primary);
@@ -144,7 +147,7 @@
 
 @media (max-width: 900px) {
   .contact-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .map-card {

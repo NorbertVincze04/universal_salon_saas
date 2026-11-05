@@ -71,6 +71,7 @@
 }
 
 .nav-link {
+  white-space: nowrap;
   font-size: 0.9rem;
   font-weight: 500;
   color: var(--theme-text-soft);
@@ -272,8 +273,9 @@
   }
 }
 
-/* Phone/narrow tablet: collapse text nav links into a dropdown panel */
-@media (max-width: 720px) {
+/* Phones and tablets: collapse text nav links into a dropdown panel. With
+   owner/admin links the inline nav doesn't fit below ~960px. */
+@media (max-width: 960px) {
   .header-nav {
     position: absolute;
     top: 64px;
@@ -296,6 +298,8 @@
 
   .header-nav.open {
     max-height: calc(100vh - 64px);
+    /* dvh excludes the mobile browser toolbars, so the last link stays reachable. */
+    max-height: calc(100dvh - 64px);
     overflow-y: auto;
     opacity: 1;
     pointer-events: auto;
@@ -333,4 +337,34 @@
   .logo-img {
     height: 28px;
   }
+}
+
+/* Long names/emails truncate (see .profile-summary) instead of widening the dropdown off-screen. */
+.profile-dropdown {
+  max-width: min(320px, calc(100vw - 1.5rem));
+}
+
+/* A long salon name must not push the header icons off-screen on phones. */
+.header-left,
+.logo-link {
+  min-width: 0;
+}
+
+.header-right {
+  flex-shrink: 0;
+}
+
+.logo-text,
+.logo-img {
+  max-width: 100%;
+}
+
+.logo-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header {
+  gap: 0.75rem;
 }

@@ -35,7 +35,13 @@
             (click)="onProfileClick(profile)"
             [attr.aria-label]="'Open profile for ' + profile.name"
           >
-            <img [src]="profile.imageUrl" [alt]="profile.name" loading="lazy" />
+            @if (profile.imageUrl) {
+              <img [src]="profile.imageUrl" [alt]="profile.name" loading="lazy" />
+            } @else {
+              <div class="card-placeholder" aria-hidden="true">
+                {{ (profile.name || "?").charAt(0) }}
+              </div>
+            }
             <div class="card-overlay">
               <h3>{{ profile.name }}</h3>
               <p>{{ profile.role }}</p>

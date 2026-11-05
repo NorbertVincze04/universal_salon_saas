@@ -471,4 +471,61 @@ td span {
   .search-input {
     width: 100%;
   }
+
+  /* Phones: render each user as a stacked card instead of an 860px-wide
+     table that has to be scrolled sideways to reach the note and actions. */
+  .table-wrap {
+    overflow: visible;
+  }
+
+  table,
+  tbody,
+  tr,
+  td {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  table {
+    min-width: 0;
+  }
+
+  thead {
+    display: none;
+  }
+
+  tr {
+    margin-bottom: 0.75rem;
+    padding: 0.25rem 1rem;
+    border: 1px solid var(--theme-border);
+    border-radius: 0.75rem;
+  }
+
+  td {
+    padding: 0.75rem 0;
+    overflow-wrap: anywhere;
+  }
+
+  tr td:last-child {
+    border-bottom: 0;
+  }
+
+  td:nth-child(n + 2)::before {
+    display: block;
+    margin-bottom: 0.35rem;
+    color: var(--theme-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  td:nth-child(2)::before { content: "Role"; }
+  td:nth-child(3)::before { content: "Access"; }
+  td:nth-child(4)::before { content: "Private note"; }
+
+  .note-cell {
+    min-width: 0;
+  }
 }

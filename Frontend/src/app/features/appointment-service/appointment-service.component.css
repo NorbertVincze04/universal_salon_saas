@@ -20,11 +20,12 @@ h2 {
   color: var(--theme-text);
 }
 h1 {
-  font-size: clamp(2.3rem, 6vw, 4.5rem);
+  font-size: clamp(1.9rem, 6vw, 4.5rem);
   margin: 0.25rem 0;
 }
 h2 {
-  font-size: 2.4rem;
+  /* Headings include the barber's name, so they must scale down on phones. */
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
   margin: 0.3rem 0 1.5rem;
 }
 .booking-panel {

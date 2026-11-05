@@ -107,3 +107,30 @@ select,
 textarea {
   font-family: inherit;
 }
+
+/* ---- Mobile safety nets ---------------------------------------------- */
+
+/* Media never pushes the layout wider than its container. */
+img,
+video,
+canvas,
+iframe {
+  max-width: 100%;
+}
+
+/* Long unbroken strings (emails, URLs, names) wrap instead of overflowing. */
+body {
+  overflow-wrap: break-word;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* iOS Safari zooms the page when a focused field's text is under 16px.
+   Only applied on iOS (the only engine supporting -webkit-touch-callout). */
+@supports (-webkit-touch-callout: none) {
+  input,
+  select,
+  textarea {
+    font-size: max(16px, 1em) !important;
+  }
+}

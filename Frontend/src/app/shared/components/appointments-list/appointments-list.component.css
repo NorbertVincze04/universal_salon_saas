@@ -189,19 +189,83 @@
     flex-wrap: wrap;
   }
 
-  /* Grid-based rows get too cramped on phones; let the table scroll
-     sideways instead of squeezing every column unreadably small. */
+  /* Phones: each row becomes a stacked card with labelled fields, so every
+     column (including the action buttons) is visible without side-scrolling.
+     Cell order is fixed: status, date, service, hour, customer/barber, actions. */
   .appointments-table {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    display: grid;
+    gap: 0.75rem;
   }
 
-  .table-row {
-    min-width: 520px;
+  .table-header {
+    display: none;
   }
 
+  .table-row,
   .table-row.barber-row,
   .table-row.customer-row {
-    min-width: 760px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 0.85rem 1rem;
+    padding: 1rem;
+    border: 1px solid var(--theme-border);
+    border-radius: 0.75rem;
+    background: var(--theme-surface);
+  }
+
+  .table-row [role="cell"] {
+    display: grid;
+    gap: 0.2rem;
+    align-content: start;
+    text-align: left;
+  }
+
+  .table-row [role="cell"]::before {
+    color: var(--theme-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .table-row [role="cell"]:nth-child(1)::before { content: "Status"; }
+  .table-row [role="cell"]:nth-child(2)::before { content: "Date"; }
+  .table-row [role="cell"]:nth-child(3)::before { content: "Service"; }
+  .table-row [role="cell"]:nth-child(4)::before { content: "Hour"; }
+  .table-row.barber-row [role="cell"]:nth-child(5)::before { content: "Customer"; }
+  .table-row.customer-row [role="cell"]:nth-child(5)::before { content: "Barber"; }
+
+  .service-cell {
+    grid-column: 1 / -1;
+    max-width: none;
+    margin: 0;
+  }
+
+  .hour-cell {
+    white-space: normal;
+  }
+
+  .hour-cell input[type="time"] {
+    min-width: 0;
+  }
+
+  .appointment-actions,
+  .table-row [role="cell"].appointment-actions {
+    display: flex;
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .table-row [role="cell"].appointment-actions::before {
+    content: none;
+  }
+
+  /* No actions for this row (e.g. completed): drop the empty cell. */
+  .table-row [role="cell"].appointment-actions:empty {
+    display: none;
+  }
+
+  .pending-badge {
+    flex-basis: 100%;
   }
 }
