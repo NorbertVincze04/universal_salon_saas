@@ -18,13 +18,14 @@ export function generateToken(user: UserPayload): string {
     JWT_SECRET,
     {
       expiresIn: JWT_EXPIRES_IN,
+      algorithm: "HS256",
     },
   );
 }
 
 export function verifyToken(token: string): UserPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET, { algorithms: ["HS256"] });
     if (typeof decoded !== "object" || decoded === null) {
       return null;
     }
@@ -56,6 +57,10 @@ export function verifyToken(token: string): UserPayload | null {
     }
 
     payload.roles = roles;
+    payload.issuedAt =
+      typeof (decoded as { iat?: unknown }).iat === "number"
+        ? (decoded as { iat: number }).iat
+        : undefined;
 
     return payload as UserPayload;
   } catch (error) {

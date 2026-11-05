@@ -45,10 +45,10 @@ export class AuthController {
     } catch (error: any) {
       console.error("Register failed:", error);
 
-      if (error.message.includes("already exists") || error.code === "23505") {
+      if (error?.message?.includes("already exists") || error?.code === "23505") {
         return res.status(409).json({
           success: false,
-          message: error.message,
+          message: "An account with that email already exists.",
         });
       }
 
@@ -82,10 +82,11 @@ export class AuthController {
         payload: result,
       });
     } catch (error: any) {
-      return res.status(401).json({
-        success: false,
-        message: error.message || "Login failed.",
-      });
+      if (error?.message === "Email or password is incorrect.") {
+        return res.status(401).json({ success: false, message: error.message });
+      }
+      console.error("Login failed:", error);
+      return res.status(500).json({ success: false, message: "Login failed." });
     }
   }
 
@@ -136,7 +137,7 @@ export class AuthController {
     } catch (error: any) {
       return res.status(400).json({
         success: false,
-        message: error.message || "Invalid or expired code.",
+        message: "Invalid or expired code.",
       });
     }
   }
@@ -169,7 +170,7 @@ export class AuthController {
     } catch (error: any) {
       return res.status(400).json({
         success: false,
-        message: error.message || "Password reset failed.",
+        message: "Invalid or expired reset session.",
       });
     }
   }

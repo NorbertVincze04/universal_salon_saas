@@ -14,8 +14,22 @@ export const JWT_SECRET = process.env.JWT_SECRET ?? "";
 if (!JWT_SECRET) {
   throw new Error("JWT_SECRET must be configured.");
 }
+if (JWT_SECRET.length < 32) {
+  throw new Error("JWT_SECRET must be at least 32 characters long.");
+}
 export const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN ||
   "1d") as SignOptions["expiresIn"];
+
+// Number of proxy hops to trust (e.g. "1"), "true", or unset/"false" to trust none.
+const rawTrustProxy = (process.env.TRUST_PROXY || "").trim().toLowerCase();
+export const TRUST_PROXY: boolean | number =
+  rawTrustProxy === "" || rawTrustProxy === "false"
+    ? false
+    : rawTrustProxy === "true"
+      ? true
+      : Number.isInteger(Number(rawTrustProxy))
+        ? Number(rawTrustProxy)
+        : false;
 
 // SMTP is optional: when unset, outgoing mail (e.g. password reset codes) is
 // logged to the console instead of sent, so local development works without setup.

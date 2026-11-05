@@ -1,6 +1,7 @@
 import type { Request, Response } from "express";
 import { BarberGalleryRepository } from "../repositories/BarberGalleryRepository.ts";
 import { hasRole } from "../types/user.types.ts";
+import { IMAGE_DATA_URL_PATTERN } from "../utils/httpError.ts";
 
 const MAX_GALLERY_PHOTOS = 12;
 const MAX_IMAGE_DATA_LENGTH = 2_500_000;
@@ -53,7 +54,7 @@ export class BarberGalleryController {
     const positionY = Number(imagePositionY ?? 50);
     if (
       typeof imageData !== "string" ||
-      !imageData.startsWith("data:image/") ||
+      !IMAGE_DATA_URL_PATTERN.test(imageData) ||
       imageData.length > MAX_IMAGE_DATA_LENGTH ||
       trimmedCaption.length > 160 ||
       !Number.isInteger(positionX) ||

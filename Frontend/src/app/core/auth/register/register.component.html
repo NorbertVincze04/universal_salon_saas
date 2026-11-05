@@ -141,10 +141,10 @@
       >
         <span *ngIf="password.errors?.['required']">Password is required.</span>
         <span *ngIf="password.errors?.['minlength']"
-          >Password must be at least 6 characters.</span
+          >Password must be at least 8 characters.</span
         >
         <span *ngIf="password.errors?.['maxlength']"
-          >Password must be at most 10 characters.</span
+          >Password must be at most 72 characters.</span
         >
         <span *ngIf="password.errors?.['pattern']"
           >Password must include an uppercase letter, a number, and a special

@@ -5,12 +5,17 @@ export class UserRepository {
   static async findAuthState(
     userId: string,
     shopId: string,
-  ): Promise<{ role: UserRecord["role"]; roles: UserRecord["roles"] } | null> {
+  ): Promise<{
+    role: UserRecord["role"];
+    roles: UserRecord["roles"];
+    passwordChangedAt: Date | null;
+  } | null> {
     const { rows } = await pool.query<{
       role: UserRecord["role"];
       roles: UserRecord["roles"];
+      passwordChangedAt: Date | null;
     }>(
-      `SELECT role, roles
+      `SELECT role, roles, password_changed_at AS "passwordChangedAt"
        FROM users
        WHERE id = $1 AND shop_id = $2 AND is_active = TRUE`,
       [userId, shopId],
@@ -59,7 +64,10 @@ export class UserRepository {
          END,
          role = CASE
            WHEN $3 AND role = 'CUSTOMER' THEN 'BARBER'
-           WHEN role = 'BARBER' THEN 'CUSTOMER'
+           -- Only demote the primary role when the barber role is being removed,
+           -- and fall back to a role the user still holds.
+           WHEN NOT $3 AND role = 'BARBER'
+             THEN COALESCE((array_remove(roles, 'BARBER'))[1], 'CUSTOMER')
            ELSE role
          END,
          updated_at = NOW()
@@ -221,7 +229,8 @@ export class UserRepository {
     passwordHash: string,
   ): Promise<boolean> {
     const result = await pool.query(
-      `UPDATE users SET password_hash = $3, updated_at = NOW()
+      `UPDATE users
+       SET password_hash = $3, password_changed_at = NOW(), updated_at = NOW()
        WHERE id = $1 AND shop_id = $2 AND is_active = TRUE`,
       [userId, shopId, passwordHash],
     );

@@ -1,4 +1,5 @@
 import { pool } from "../db.ts";
+import { HttpError } from "../utils/httpError.ts";
 
 const BOOKING_TIME_ZONE = "Europe/Bucharest";
 
@@ -52,7 +53,6 @@ export function formatBucharestTime(value: Date): string {
 export interface BarberProfile {
   id: string;
   name: string;
-  email: string;
   phoneNumber: string | null;
   profileImageUrl: string | null;
   profileImagePositionX: number;
@@ -82,7 +82,7 @@ export class BarberRepository {
        WHERE id = $1 AND shop_id = $2 AND 'BARBER' = ANY(roles) AND is_active = TRUE`,
       [barberId, shopId],
     );
-    if (!barber.rowCount) throw new Error("Barber not found.");
+    if (!barber.rowCount) throw new HttpError(404, "Barber not found.");
     const { rows } = await pool.query(
       `INSERT INTO services (shop_id, barber_id, name, duration_minutes, price)
        VALUES ($1, $2, $3, $4, $5)
@@ -221,7 +221,7 @@ export class BarberRepository {
 
   static async list(shopId: string): Promise<BarberProfile[]> {
     const { rows } = await pool.query(
-      `SELECT u.id, u.full_name AS name, u.email, u.phone_number AS "phoneNumber",
+      `SELECT u.id, u.full_name AS name, u.phone_number AS "phoneNumber",
         u.profile_image_url AS "profileImageUrl", u.profile_image_position_x AS "profileImagePositionX", u.profile_image_position_y AS "profileImagePositionY",
         u.roles,
         (SELECT ROUND(AVG(r.rating)::numeric, 1) FROM barber_ratings r WHERE r.barber_id = u.id) AS rating,
@@ -238,7 +238,7 @@ export class BarberRepository {
     barberId: string,
   ): Promise<BarberProfile | null> {
     const { rows } = await pool.query(
-      `SELECT u.id, u.full_name AS name, u.email, u.phone_number AS "phoneNumber",
+      `SELECT u.id, u.full_name AS name, u.phone_number AS "phoneNumber",
         u.profile_image_url AS "profileImageUrl", u.profile_image_position_x AS "profileImagePositionX", u.profile_image_position_y AS "profileImagePositionY",
         u.roles,
         (SELECT ROUND(AVG(r.rating)::numeric, 1) FROM barber_ratings r WHERE r.barber_id = u.id) AS rating,
@@ -347,6 +347,9 @@ export class BarberRepository {
     const endsAt = new Date(
       new Date(startsAt).getTime() + durationMinutes * 60000,
     ).toISOString();
+    if (new Date(startsAt).getTime() <= Date.now()) {
+      throw new HttpError(409, "This time is in the past.");
+    }
     const weekday = new Date(`${date}T12:00:00Z`).getUTCDay();
     const hoursResult = await pool.query(
       `SELECT start_time::text, end_time::text FROM barber_working_hours
@@ -360,7 +363,7 @@ export class BarberRepository {
       timeToMinutes(formatBucharestTime(new Date(endsAt))) >
         timeToMinutes(hours.end_time)
     ) {
-      throw new Error("This time is outside the barber's working hours.");
+      throw new HttpError(409, "This time is outside the barber's working hours.");
     }
     const blockedResult = await pool.query(
       `SELECT 1 FROM barber_blocked_periods
@@ -368,7 +371,7 @@ export class BarberRepository {
       [shopId, barberId, startsAt, endsAt],
     );
     if (blockedResult.rowCount)
-      throw new Error("This time is blocked by the barber.");
+      throw new HttpError(409, "This time is blocked by the barber.");
 
     const overlapResult = await pool.query(
       `SELECT 1 FROM appointments
@@ -379,7 +382,7 @@ export class BarberRepository {
       [shopId, barberId, startsAt, endsAt, excludeAppointmentId ?? null],
     );
     if (overlapResult.rowCount)
-      throw new Error("This time overlaps with another appointment.");
+      throw new HttpError(409, "This time overlaps with another appointment.");
   }
 
   static async createAppointment(input: {
@@ -403,18 +406,21 @@ export class BarberRepository {
         [input.serviceId, input.shopId, input.barberId],
       );
       const service = serviceResult.rows[0];
-      if (!service) throw new Error("Service not found.");
+      if (!service) throw new HttpError(404, "Service not found.");
       const barberResult = await client.query(
         `SELECT id FROM users
          WHERE id = $1 AND shop_id = $2 AND 'BARBER' = ANY(roles) AND is_active = TRUE`,
         [input.barberId, input.shopId],
       );
-      if (!barberResult.rowCount) throw new Error("Barber not found.");
+      if (!barberResult.rowCount) throw new HttpError(404, "Barber not found.");
 
       const startsAt = bucharestTimeToUtc(input.date, input.time).toISOString();
       const endsAt = new Date(
         new Date(startsAt).getTime() + service.durationMinutes * 60000,
       ).toISOString();
+      if (new Date(startsAt).getTime() <= Date.now()) {
+        throw new HttpError(409, "This time is in the past.");
+      }
       const weekday = new Date(`${input.date}T12:00:00Z`).getUTCDay();
       const hoursResult = await client.query(
         `SELECT start_time::text, end_time::text FROM barber_working_hours
@@ -428,7 +434,7 @@ export class BarberRepository {
         timeToMinutes(formatBucharestTime(new Date(endsAt))) >
           timeToMinutes(hours.end_time)
       ) {
-        throw new Error("This time is outside the barber's working hours.");
+        throw new HttpError(409, "This time is outside the barber's working hours.");
       }
       const blockedResult = await client.query(
         `SELECT 1 FROM barber_blocked_periods
@@ -436,13 +442,13 @@ export class BarberRepository {
         [input.shopId, input.barberId, startsAt, endsAt],
       );
       if (blockedResult.rowCount)
-        throw new Error("This time is blocked by the barber.");
+        throw new HttpError(409, "This time is blocked by the barber.");
       const result = await client.query(
         `INSERT INTO appointments
           (shop_id, customer_id, service_id, barber_id, appointment_date, appointment_time,
            starts_at, ends_at, guest_name, guest_email, guest_phone)
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-         RETURNING id, appointment_date AS date, appointment_time AS time, status`,
+         RETURNING id, appointment_date::text AS date, appointment_time::text AS time, status`,
         [
           input.shopId,
           input.customerId ?? null,
@@ -462,7 +468,7 @@ export class BarberRepository {
     } catch (error) {
       await client.query("ROLLBACK");
       if ((error as { code?: string }).code === "23P01") {
-        throw new Error("This time is no longer available.");
+        throw new HttpError(409, "This time is no longer available.");
       }
       throw error;
     } finally {

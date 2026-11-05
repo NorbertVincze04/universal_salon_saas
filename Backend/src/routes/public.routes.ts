@@ -5,6 +5,7 @@ import { BarberGalleryController } from "../controllers/BarberGalleryController.
 import { BugReportController } from "../controllers/BugReportController.ts";
 import { tenantMiddleware } from "../middleware/tenant.middleware.ts";
 import { authMiddleware } from "../middleware/auth.middleware.ts";
+import { publicWriteRateLimiter } from "../middleware/rateLimit.middleware.ts";
 
 export const publicRouter = Router();
 publicRouter.use(tenantMiddleware);
@@ -52,13 +53,13 @@ publicRouter.get("/services", (req, res) =>
 publicRouter.get("/availability", (req, res) =>
   PublicController.availability(req, res),
 );
-publicRouter.post("/appointments", (req, res) =>
+publicRouter.post("/appointments", publicWriteRateLimiter, (req, res) =>
   PublicController.createGuestAppointment(req, res),
 );
 publicRouter.post("/appointments/account", authMiddleware, (req, res) =>
   PublicController.createAccountAppointment(req, res),
 );
-publicRouter.post("/bug-reports", (req, res) =>
+publicRouter.post("/bug-reports", publicWriteRateLimiter, (req, res) =>
   BugReportController.create(req, res),
 );
 publicRouter.get("/schedule", authMiddleware, (req, res) =>

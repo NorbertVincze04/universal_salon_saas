@@ -12,10 +12,22 @@ export const apiRateLimiter = rateLimit({
 
 export const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  limit: 100, // limit each IP to 10 requests per windowMs
+  limit: 30, // limit each IP to 30 auth requests per window
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     message: "Too many authentication attempts. Please try again later.",
+  },
+});
+
+// Anonymous write endpoints (guest bookings, reviews, bug reports) are easy
+// spam targets, so they get a much tighter budget than general API reads.
+export const publicWriteRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    message: "Too many submissions. Please try again later.",
   },
 });

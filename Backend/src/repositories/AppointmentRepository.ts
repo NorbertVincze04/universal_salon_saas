@@ -1,4 +1,5 @@
 import { pool } from "../db.ts";
+import { HttpError } from "../utils/httpError.ts";
 import { bucharestTimeToUtc } from "./BarberRepository.ts";
 
 export interface AppointmentRecord {
@@ -102,7 +103,8 @@ export class AppointmentRepository {
       UPDATE appointments a
       SET status = $4, updated_at = NOW()
       WHERE a.id = $1 AND a.barber_id = $2 AND a.shop_id = $3
-      RETURNING a.id, a.appointment_date, a.appointment_time, a.status, a.service_id, a.customer_id,
+      RETURNING a.id, a.appointment_date::text AS appointment_date,
+        a.appointment_time::text AS appointment_time, a.status, a.service_id, a.customer_id,
         (SELECT s.name FROM services s WHERE s.id = a.service_id) AS service_name,
         (SELECT u.full_name FROM users u WHERE u.id = a.customer_id) AS customer_name,
         a.guest_name, a.guest_email, a.guest_phone
@@ -126,7 +128,7 @@ export class AppointmentRepository {
       [input.serviceId, shopId, barberId],
     );
     const service = serviceResult.rows[0];
-    if (!service) throw new Error("Service not found.");
+    if (!service) throw new HttpError(404, "Service not found.");
 
     const startsAt = bucharestTimeToUtc(input.date, input.time).toISOString();
     const endsAt = new Date(
@@ -140,7 +142,8 @@ export class AppointmentRepository {
         SET appointment_date = $4, appointment_time = $5, service_id = $6,
           starts_at = $7, ends_at = $8, updated_at = NOW()
         WHERE a.id = $1 AND a.barber_id = $2 AND a.shop_id = $3
-        RETURNING a.id, a.appointment_date, a.appointment_time, a.status, a.service_id, a.customer_id,
+        RETURNING a.id, a.appointment_date::text AS appointment_date,
+        a.appointment_time::text AS appointment_time, a.status, a.service_id, a.customer_id,
           (SELECT s.name FROM services s WHERE s.id = a.service_id) AS service_name,
           (SELECT u.full_name FROM users u WHERE u.id = a.customer_id) AS customer_name,
           a.guest_name, a.guest_email, a.guest_phone
@@ -159,7 +162,7 @@ export class AppointmentRepository {
       return rows[0] ?? null;
     } catch (error) {
       if ((error as { code?: string }).code === "23P01") {
-        throw new Error("This time overlaps with another appointment.");
+        throw new HttpError(409, "This time overlaps with another appointment.");
       }
       throw error;
     }

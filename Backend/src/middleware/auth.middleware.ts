@@ -36,10 +36,12 @@ export async function authMiddleware(
       });
     }
 
+    // Tenant isolation: a token is only valid on the salon that issued it.
+    // 401 (not 403) so clients drop the foreign session and re-authenticate.
     if (!req.shop || user.shopId !== req.shop.id) {
-      return res.status(403).json({
+      return res.status(401).json({
         success: false,
-        message: "Token does not belong to this salon.",
+        message: "Your session belongs to a different salon. Please log in.",
       });
     }
 
@@ -54,6 +56,19 @@ export async function authMiddleware(
       return res.status(401).json({
         success: false,
         message: "Your account permissions changed. Please log in again.",
+      });
+    }
+
+    // Tokens issued before the last password change are revoked.
+    if (
+      authState.passwordChangedAt &&
+      (user.issuedAt === undefined ||
+        user.issuedAt <
+          Math.floor(new Date(authState.passwordChangedAt).getTime() / 1000))
+    ) {
+      return res.status(401).json({
+        success: false,
+        message: "Your password was changed. Please log in again.",
       });
     }
 

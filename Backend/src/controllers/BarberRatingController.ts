@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { BarberRatingRepository } from "../repositories/BarberRatingRepository.ts";
 import { NotificationService } from "../services/NotificationService.ts";
 import { hasRole } from "../types/user.types.ts";
+import { respondWithHttpError } from "../utils/httpError.ts";
 
 export class BarberRatingController {
   static async mineReceived(req: Request, res: Response): Promise<Response> {
@@ -112,10 +113,7 @@ export class BarberRatingController {
       );
       return res.status(201).json({ success: true, payload: rated });
     } catch (error) {
-      return res.status(409).json({
-        success: false,
-        message: (error as Error).message || "Could not submit your rating.",
-      });
+      return respondWithHttpError(res, error);
     }
   }
 

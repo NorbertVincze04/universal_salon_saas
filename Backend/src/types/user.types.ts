@@ -9,6 +9,8 @@ export interface UserPayload {
   email: string;
   role: UserRole;
   roles: UserRole[];
+  // JWT "iat" (seconds since epoch); only set on payloads decoded from a token.
+  issuedAt?: number;
 }
 
 // structure of a user record in the database.

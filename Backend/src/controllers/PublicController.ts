@@ -2,6 +2,112 @@ import type { Request, Response } from "express";
 import { BarberRepository } from "../repositories/BarberRepository.ts";
 import { NotificationService } from "../services/NotificationService.ts";
 import { hasRole } from "../types/user.types.ts";
+import {
+  EMAIL_PATTERN,
+  PHONE_PATTERN,
+  isCalendarDate,
+  isClockTime,
+  isUuid,
+} from "../utils/httpError.ts";
+
+// ISO-like timestamps, e.g. "2026-11-06T10:00" from <input type="datetime-local">
+// or a full ISO string with offset. Passed through unchanged so Postgres keeps
+// interpreting zone-less values exactly as before.
+const TIMESTAMP_PATTERN =
+  /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}(:?\d{2})?)?$/;
+
+function parseTimestamp(value: unknown): string | null {
+  if (typeof value !== "string" || !TIMESTAMP_PATTERN.test(value)) return null;
+  return Number.isNaN(new Date(value).getTime()) ? null : value;
+}
+
+type WorkingHourInput = {
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  isActive?: boolean;
+};
+
+function parseWorkingHours(value: unknown): WorkingHourInput[] | null {
+  if (!Array.isArray(value) || value.length > 7) return null;
+  const seen = new Set<number>();
+  const hours: WorkingHourInput[] = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object") return null;
+    const { weekday, startTime, endTime, isActive } = item as Record<
+      string,
+      unknown
+    >;
+    if (
+      !Number.isInteger(weekday) ||
+      (weekday as number) < 0 ||
+      (weekday as number) > 6 ||
+      seen.has(weekday as number) ||
+      !isClockTime(startTime) ||
+      !isClockTime(endTime) ||
+      startTime.slice(0, 5) >= endTime.slice(0, 5) ||
+      (isActive !== undefined && typeof isActive !== "boolean")
+    ) {
+      return null;
+    }
+    seen.add(weekday as number);
+    hours.push({
+      weekday: weekday as number,
+      startTime,
+      endTime,
+      isActive: isActive as boolean | undefined,
+    });
+  }
+  return hours;
+}
+
+function parseServiceInput(body: any): {
+  name: string;
+  durationMinutes: number;
+  price: number;
+} | null {
+  const name = typeof body?.name === "string" ? body.name.trim() : "";
+  const durationMinutes = Number(body?.durationMinutes);
+  const price = Number(body?.price);
+  if (
+    !name ||
+    name.length > 120 ||
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes <= 0 ||
+    durationMinutes > 24 * 60 ||
+    !Number.isFinite(price) ||
+    price < 0 ||
+    price > 99_999_999
+  ) {
+    return null;
+  }
+  return { name, durationMinutes, price };
+}
+
+function parseBlockedPeriod(body: any): {
+  startsAt: string;
+  endsAt: string;
+  reason: string | null;
+} | null {
+  const startsAt = parseTimestamp(body?.startsAt);
+  const endsAt = parseTimestamp(body?.endsAt);
+  const reason = body?.reason;
+  if (
+    !startsAt ||
+    !endsAt ||
+    (reason !== undefined &&
+      reason !== null &&
+      (typeof reason !== "string" || reason.trim().length > 255))
+  ) {
+    return null;
+  }
+  // Ordering (starts_at < ends_at) is enforced by a DB CHECK constraint.
+  return {
+    startsAt,
+    endsAt,
+    reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
+  };
+}
 
 export class PublicController {
   static async listBarbers(req: Request, res: Response) {
@@ -92,19 +198,25 @@ export class PublicController {
       guestName,
       guestEmail,
       guestPhone,
-    } = req.body;
+    } = req.body ?? {};
     if (
-      !barberId ||
-      !serviceId ||
-      !date ||
-      !time ||
-      !guestName ||
-      !guestEmail ||
-      !guestPhone
+      !isUuid(barberId) ||
+      !isUuid(serviceId) ||
+      !isCalendarDate(date) ||
+      !isClockTime(time) ||
+      typeof guestName !== "string" ||
+      !guestName.trim() ||
+      guestName.trim().length > 150 ||
+      typeof guestEmail !== "string" ||
+      guestEmail.trim().length > 254 ||
+      !EMAIL_PATTERN.test(guestEmail.trim()) ||
+      typeof guestPhone !== "string" ||
+      !PHONE_PATTERN.test(guestPhone.trim())
     ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "All booking details are required." });
+      return res.status(400).json({
+        success: false,
+        message: "All booking details are required and must be valid.",
+      });
     }
     const appointment = await BarberRepository.createAppointment({
       shopId: req.shop!.id,
@@ -112,12 +224,12 @@ export class PublicController {
       serviceId,
       date,
       time,
-      guestName,
-      guestEmail,
-      guestPhone,
+      guestName: guestName.trim(),
+      guestEmail: guestEmail.trim().toLowerCase(),
+      guestPhone: guestPhone.trim(),
     });
     await NotificationService.notifyAppointmentBooked(req.shop!.id, barberId, {
-      customerName: guestName,
+      customerName: guestName.trim(),
       serviceName: appointment.serviceName,
       date: appointment.date,
       time: String(appointment.time).slice(0, 5),
@@ -126,8 +238,13 @@ export class PublicController {
   }
 
   static async createAccountAppointment(req: Request, res: Response) {
-    const { barberId, serviceId, date, time } = req.body;
-    if (!barberId || !serviceId || !date || !time) {
+    const { barberId, serviceId, date, time } = req.body ?? {};
+    if (
+      !isUuid(barberId) ||
+      !isUuid(serviceId) ||
+      !isCalendarDate(date) ||
+      !isClockTime(time)
+    ) {
       return res.status(400).json({
         success: false,
         message: "Barber, service, date and time are required.",
@@ -176,11 +293,15 @@ export class PublicController {
         message: "Only barbers can manage schedules.",
       });
     const barberId = req.user!.id;
-    await BarberRepository.saveWorkingHours(
-      req.shop!.id,
-      barberId,
-      req.body.hours ?? [],
-    );
+    const hours = parseWorkingHours(req.body?.hours ?? []);
+    if (!hours) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Working hours need a weekday (0-6) and a start time before the end time.",
+      });
+    }
+    await BarberRepository.saveWorkingHours(req.shop!.id, barberId, hours);
     return res.json({ success: true });
   }
 
@@ -191,19 +312,19 @@ export class PublicController {
         message: "Only barbers can manage schedules.",
       });
     const barberId = req.user!.id;
-    const { startsAt, endsAt, reason } = req.body;
-    if (!startsAt || !endsAt)
+    const period = parseBlockedPeriod(req.body);
+    if (!period)
       return res
         .status(400)
-        .json({ success: false, message: "Start and end are required." });
+        .json({ success: false, message: "A valid start and end are required." });
     return res.status(201).json({
       success: true,
       payload: await BarberRepository.addBlockedPeriod(
         req.shop!.id,
         barberId,
-        startsAt,
-        endsAt,
-        reason,
+        period.startsAt,
+        period.endsAt,
+        period.reason ?? undefined,
       ),
     });
   }
@@ -238,18 +359,18 @@ export class PublicController {
       return res
         .status(400)
         .json({ success: false, message: "A blocked period is required." });
-    const { startsAt, endsAt, reason } = req.body;
-    if (!startsAt || !endsAt)
+    const input = parseBlockedPeriod(req.body);
+    if (!input)
       return res
         .status(400)
-        .json({ success: false, message: "Start and end are required." });
+        .json({ success: false, message: "A valid start and end are required." });
     const period = await BarberRepository.updateBlockedPeriod(
       req.shop!.id,
       req.user!.id,
       blockedId,
-      startsAt,
-      endsAt,
-      reason,
+      input.startsAt,
+      input.endsAt,
+      input.reason ?? undefined,
     );
     return period
       ? res.json({ success: true, payload: period })
@@ -263,13 +384,8 @@ export class PublicController {
       return res
         .status(403)
         .json({ success: false, message: "Only barbers can create services." });
-    const { name, durationMinutes, price } = req.body;
-    if (
-      !name ||
-      !Number.isInteger(Number(durationMinutes)) ||
-      Number(durationMinutes) <= 0 ||
-      Number(price) < 0
-    ) {
+    const input = parseServiceInput(req.body);
+    if (!input) {
       return res.status(400).json({
         success: false,
         message: "Name, duration and a valid price are required.",
@@ -278,9 +394,9 @@ export class PublicController {
     const service = await BarberRepository.createService(
       req.shop!.id,
       req.user!.id,
-      name,
-      Number(durationMinutes),
-      Number(price),
+      input.name,
+      input.durationMinutes,
+      input.price,
     );
     return res.status(201).json({ success: true, payload: service });
   }
@@ -295,13 +411,8 @@ export class PublicController {
       return res
         .status(400)
         .json({ success: false, message: "A service is required." });
-    const { name, durationMinutes, price } = req.body;
-    if (
-      !name ||
-      !Number.isInteger(Number(durationMinutes)) ||
-      Number(durationMinutes) <= 0 ||
-      Number(price) < 0
-    ) {
+    const input = parseServiceInput(req.body);
+    if (!input) {
       return res.status(400).json({
         success: false,
         message: "Name, duration and a valid price are required.",
@@ -311,9 +422,9 @@ export class PublicController {
       req.shop!.id,
       req.user!.id,
       serviceId,
-      name,
-      Number(durationMinutes),
-      Number(price),
+      input.name,
+      input.durationMinutes,
+      input.price,
     );
     return service
       ? res.json({ success: true, payload: service })

@@ -11,6 +11,14 @@ import {
 import { TenantService } from '../../../core/services/tenant.service';
 import { ActionButtonComponent } from '../action-button/action-button.component';
 
+// Map providers whose embed URLs may be used as the contact-section iframe.
+const MAP_EMBED_HOSTS = [
+  'google.com',
+  'maps.google.com',
+  'openstreetmap.org',
+  'bing.com',
+];
+
 @Component({
   selector: 'app-contact-details',
   standalone: true,
@@ -87,7 +95,13 @@ export class ContactDetailsComponent {
 
     try {
       const url = new URL(mapEmbedUrl);
-      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      // The URL is trusted as an iframe source, so only allow known map
+      // providers over HTTPS rather than any page a salon admin pastes in.
+      const host = url.hostname.toLowerCase();
+      const isAllowedHost = MAP_EMBED_HOSTS.some(
+        (allowed) => host === allowed || host.endsWith(`.${allowed}`),
+      );
+      if (url.protocol !== 'https:' || !isAllowedHost) {
         return null;
       }
       return this.sanitizer.bypassSecurityTrustResourceUrl(url.toString());

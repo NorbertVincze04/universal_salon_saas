@@ -1,4 +1,5 @@
 import { pool } from "../db.ts";
+import { HttpError } from "../utils/httpError.ts";
 
 const RATING_COOLDOWN_MS = 1000 * 60 * 60 * 24 * 90; // 3 months
 const REMINDER_INTERVAL_MS = 1000 * 60 * 60 * 24 * 7; // 1 week
@@ -102,7 +103,7 @@ export class BarberRatingRepository {
     comment: string,
   ): Promise<BarberRatingRecord> {
     if (!(await hasCompletedAppointment(shopId, barberId, customerId))) {
-      throw new Error(
+      throw new HttpError(409,
         "You can only rate a barber after a completed appointment with them.",
       );
     }
@@ -115,7 +116,7 @@ export class BarberRatingRepository {
     if (existing.rows[0]) {
       const ageMs = Date.now() - new Date(existing.rows[0].createdAt).getTime();
       if (ageMs < RATING_COOLDOWN_MS) {
-        throw new Error(
+        throw new HttpError(409,
           "You can rate a barber once every 3 months. Delete your existing rating to rate again sooner.",
         );
       }

@@ -1,7 +1,7 @@
 export interface Barber {
   id: string;
   name: string;
-  email: string;
+  email?: string;
   phoneNumber: string | null;
   profileImageUrl: string | null;
   profileImagePositionX: number;

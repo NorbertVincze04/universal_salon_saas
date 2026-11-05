@@ -2,6 +2,7 @@ import {
   Injectable,
   PLATFORM_ID,
   computed,
+  effect,
   inject,
   signal,
 } from '@angular/core';
@@ -71,6 +72,16 @@ export class AuthService {
           this.logout();
         }
       }
+
+      // Tenant isolation: a session belongs to the salon that issued it. Once
+      // the current salon is known, drop a stored session from another salon.
+      effect(() => {
+        const tenantId = this.tenantService.config()?.tenantId;
+        const user = this.currentUserSubject.value;
+        if (tenantId && user?.tenantId && user.tenantId !== tenantId) {
+          this.logout();
+        }
+      });
     }
   }
 

@@ -28,9 +28,12 @@ This is the backend service for the template-driven app.
     DB_PASSWORD=your_password
     DB_NAME=your_db_name
 
-    JWT_SECRET=your_long_random_generated_code
+    JWT_SECRET=your_long_random_generated_code # at least 32 characters
     JWT_EXPIRES_IN=1d # can be changed
    CORS_ORIGIN=http://localhost:4200
+   # Set to the number of reverse proxies in front of the API (e.g. 1) in
+   # production, so rate limiting sees real client IPs. Leave unset locally.
+   TRUST_PROXY=
    ```
 
 3. Start the development server:
@@ -91,6 +94,8 @@ sql/020_barber_management_notes.sql
 sql/021_layout_feature_toggles.sql
 sql/022_password_reset_codes.sql
 sql/023_password_reset_tokens.sql
+sql/024_auth_hardening.sql
+sql/025_tenant_integrity.sql
 ```
 
 The later migrations create working hours, blocked periods, service prices,

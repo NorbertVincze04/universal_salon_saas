@@ -1,5 +1,11 @@
 import type { Request, Response } from "express";
 import { UserRepository } from "../repositories/UserRepository.ts";
+import {
+  EMAIL_PATTERN,
+  IMAGE_DATA_URL_PATTERN,
+} from "../utils/httpError.ts";
+
+const MAX_PROFILE_IMAGE_LENGTH = 2_500_000;
 
 export class UserController {
   static async deleteProfile(req: Request, res: Response): Promise<Response> {
@@ -29,12 +35,27 @@ export class UserController {
     if (
       typeof fullName !== "string" ||
       !fullName.trim() ||
+      fullName.trim().length > 150 ||
       typeof email !== "string" ||
-      !email.trim()
+      email.trim().length > 254 ||
+      !EMAIL_PATTERN.test(email.trim())
     ) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Name and email are required." });
+      return res.status(400).json({
+        success: false,
+        message: "A name and a valid email address are required.",
+      });
+    }
+    if (
+      profileImageData !== null &&
+      profileImageData !== undefined &&
+      (typeof profileImageData !== "string" ||
+        profileImageData.length > MAX_PROFILE_IMAGE_LENGTH ||
+        !IMAGE_DATA_URL_PATTERN.test(profileImageData))
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Profile image must be a PNG, JPEG, WebP or GIF under 2.5 MB.",
+      });
     }
     if (typeof phoneNumber !== "string" || !/^0[237]\d{8}$/.test(phoneNumber)) {
       return res.status(400).json({
@@ -65,10 +86,7 @@ export class UserController {
         fullName.trim(),
         email.trim().toLowerCase(),
         phoneNumber.trim(),
-        typeof profileImageData === "string" &&
-          profileImageData.startsWith("data:image/")
-          ? profileImageData
-          : null,
+        typeof profileImageData === "string" ? profileImageData : null,
         positionX,
         positionY,
       );

@@ -1,7 +1,7 @@
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
-import { CORS_ORIGINS } from "./config.ts";
+import { CORS_ORIGINS, TRUST_PROXY } from "./config.ts";
 import { authRouter } from "./routes/auth.routes.ts";
 import { tenantRouter } from "./routes/tenant.routes.ts";
 import { errorHandler } from "./middleware/error.middleware.ts";
@@ -15,6 +15,22 @@ import { managementRouter } from "./routes/management.routes.ts";
 
 export function createApp() {
   const app = express(); // create express server
+
+  app.disable("x-powered-by");
+  // Behind a reverse proxy / load balancer, trust it so rate limiting keys on
+  // the real client IP instead of the proxy's. Configure via TRUST_PROXY.
+  if (TRUST_PROXY !== false) {
+    app.set("trust proxy", TRUST_PROXY);
+  }
+
+  app.use((_req, res, next) => {
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("Cross-Origin-Resource-Policy", "same-site");
+    res.setHeader("Cache-Control", "no-store");
+    next();
+  });
 
   app.use(
     cors({

@@ -6,6 +6,12 @@ import {
 import { AppointmentRequestRepository } from "../repositories/AppointmentRequestRepository.ts";
 import { NotificationService } from "../services/NotificationService.ts";
 import { hasRole } from "../types/user.types.ts";
+import {
+  isCalendarDate,
+  isClockTime,
+  isUuid,
+  respondWithHttpError,
+} from "../utils/httpError.ts";
 
 function toPayload(appointment: AppointmentRecord) {
   return {
@@ -56,7 +62,7 @@ export class AppointmentController {
         .status(400)
         .json({ success: false, message: "An appointment is required." });
     }
-    const { status, date, time, serviceId } = req.body;
+    const { status, date, time, serviceId } = req.body ?? {};
     let appointment: AppointmentRecord | null;
     if (status !== undefined) {
       if (
@@ -85,7 +91,13 @@ export class AppointmentController {
           },
         );
       }
-    } else if (date && time && serviceId) {
+    } else if (date !== undefined || time !== undefined || serviceId !== undefined) {
+      if (!isCalendarDate(date) || !isClockTime(time) || !isUuid(serviceId)) {
+        return res.status(400).json({
+          success: false,
+          message: "A valid date, time and service are required.",
+        });
+      }
       try {
         appointment = await AppointmentRepository.updateDetailsForBarber(
           req.params.id,
@@ -106,10 +118,7 @@ export class AppointmentController {
           );
         }
       } catch (error) {
-        return res.status(409).json({
-          success: false,
-          message: (error as Error).message,
-        });
+      return respondWithHttpError(res, error);
       }
     } else {
       return res.status(400).json({
@@ -166,13 +175,13 @@ export class AppointmentController {
         req.user!.id,
         req.user!.fullName,
         req.params.id,
-        req.body.reason,
+        typeof req.body?.reason === "string"
+          ? req.body.reason.trim().slice(0, 255) || undefined
+          : undefined,
       );
       return res.status(201).json({ success: true, payload: request });
     } catch (error) {
-      return res
-        .status(409)
-        .json({ success: false, message: (error as Error).message });
+      return respondWithHttpError(res, error);
     }
   }
 
@@ -191,8 +200,14 @@ export class AppointmentController {
         .status(400)
         .json({ success: false, message: "An appointment is required." });
     }
-    const { date, time, reason } = req.body;
-    if (!date || !time) {
+    const { date, time, reason } = req.body ?? {};
+    if (
+      !isCalendarDate(date) ||
+      !isClockTime(time) ||
+      (reason !== undefined &&
+        reason !== null &&
+        (typeof reason !== "string" || reason.length > 255))
+    ) {
       return res.status(400).json({
         success: false,
         message: "A new date and time are required.",
@@ -211,9 +226,7 @@ export class AppointmentController {
         );
       return res.status(201).json({ success: true, payload: request });
     } catch (error) {
-      return res
-        .status(409)
-        .json({ success: false, message: (error as Error).message });
+      return respondWithHttpError(res, error);
     }
   }
 
@@ -229,8 +242,8 @@ export class AppointmentController {
         .status(400)
         .json({ success: false, message: "A request is required." });
     }
-    const approve = req.body.action === "APPROVE";
-    if (!approve && req.body.action !== "REJECT") {
+    const approve = req.body?.action === "APPROVE";
+    if (!approve && req.body?.action !== "REJECT") {
       return res.status(400).json({
         success: false,
         message: "action must be APPROVE or REJECT.",
@@ -249,9 +262,7 @@ export class AppointmentController {
             .status(404)
             .json({ success: false, message: "Request not found." });
     } catch (error) {
-      return res
-        .status(409)
-        .json({ success: false, message: (error as Error).message });
+      return respondWithHttpError(res, error);
     }
   }
 }

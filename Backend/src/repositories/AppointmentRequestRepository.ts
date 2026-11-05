@@ -1,4 +1,5 @@
 import { pool } from "../db.ts";
+import { HttpError } from "../utils/httpError.ts";
 import { bucharestTimeToUtc, BarberRepository } from "./BarberRepository.ts";
 import { NotificationService } from "../services/NotificationService.ts";
 
@@ -14,23 +15,23 @@ export interface ChangeRequestRecord {
 function friendlyConflictError(error: unknown): never {
   const code = (error as { code?: string }).code;
   if (code === "23505") {
-    throw new Error("There is already a pending request for this appointment.");
+    throw new HttpError(409, "There is already a pending request for this appointment.");
   }
   if (code === "23P01") {
-    throw new Error("This new time overlaps with another appointment.");
+    throw new HttpError(409, "This new time overlaps with another appointment.");
   }
   throw error;
 }
 
 function calendarDate(value: string): string {
   const match = String(value).match(/^(\d{4}-\d{2}-\d{2})/);
-  if (!match) throw new Error("The requested date is invalid.");
+  if (!match) throw new HttpError(400, "The requested date is invalid.");
   return match[1];
 }
 
 function clockTime(value: string): string {
   const match = String(value).match(/^(\d{2}:\d{2})(?::\d{2})?/);
-  if (!match) throw new Error("The requested time is invalid.");
+  if (!match) throw new HttpError(400, "The requested time is invalid.");
   return match[1];
 }
 
@@ -58,7 +59,7 @@ export class AppointmentRequestRepository {
       [appointmentId, customerId, shopId],
     );
     if (!appointment.rowCount)
-      throw new Error("Appointment not found or can no longer be changed.");
+      throw new HttpError(404, "Appointment not found or can no longer be changed.");
 
     try {
       const { rows } = await pool.query<ChangeRequestRecord>(
@@ -109,7 +110,7 @@ export class AppointmentRequestRepository {
       [appointmentId, customerId, shopId],
     );
     if (!appointment.rowCount)
-      throw new Error("Appointment not found or can no longer be changed.");
+      throw new HttpError(404, "Appointment not found or can no longer be changed.");
 
     const { barberId, durationMinutes, serviceName } = appointment.rows[0];
     await BarberRepository.assertAvailable(
@@ -215,7 +216,7 @@ export class AppointmentRequestRepository {
           [request.appointmentId],
         );
         const durationMinutes = serviceResult.rows[0]?.durationMinutes;
-        if (!durationMinutes) throw new Error("Service not found.");
+        if (!durationMinutes) throw new HttpError(404, "Service not found.");
         const requestedDate = calendarDate(request.requestedDate!);
         const requestedTime = clockTime(request.requestedTime!);
         const startsAt = bucharestTimeToUtc(

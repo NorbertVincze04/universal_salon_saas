@@ -6,6 +6,8 @@ import { hasRole } from "../types/user.types.ts";
 
 export const tenantRouter = Router();
 
+const MAX_CONTENT_JSON_LENGTH = 4_000_000;
+
 function normalizeText(value: unknown, maxLength: number): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -45,9 +47,21 @@ tenantRouter.patch(
       "contactDetails",
       "pricing",
     ]) {
-      if (body[section] && typeof body[section] === "object") {
+      if (
+        body[section] &&
+        typeof body[section] === "object" &&
+        !Array.isArray(body[section])
+      ) {
         sections[section] = body[section];
       }
+    }
+
+    // Hero images may be embedded as data URLs, so allow a generous but bounded size.
+    if (JSON.stringify(sections).length > MAX_CONTENT_JSON_LENGTH) {
+      return res.status(413).json({
+        success: false,
+        message: "Salon content is too large.",
+      });
     }
 
     const config = await ShopRepository.updateContent(req.shop!.id, sections);
